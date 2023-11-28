@@ -1,0 +1,136 @@
+'Candidatus Epulopiscium viviparus' assemblies
+
+PACBIO ONLY ASSEMBLIES
+canu -correct \
+  -p typeB -d typeB \
+  genomeSize=3.2m \
+  -pacbio  M450pacbio.fastq
+  
+  canu -trim \
+  -p typeB -d typeB \
+  genomeSize=3.2m \
+  -corrected -pacbio typeB.correctedReads.fastq.gz
+  
+  canu \
+  -p typeB -d typeB-erate-0.020 \
+  genomeSize=3.2m \
+  correctedErrorRate=0.020 \
+  -trimmed -corrected -pacbio typeB.trimmedReads.fastq.gz
+
+ canu \
+  -p typeB -d typeB-erate-0.025 \
+  genomeSize=3.2m \
+  correctedErrorRate=0.025 \
+  -trimmed -corrected -pacbio typeB.trimmedReads.fastq.gz
+  
+   canu \
+  -p typeB -d typeB-erate-0.030 \
+  genomeSize=3.2m \
+  correctedErrorRate=0.030 \
+  -trimmed -corrected -pacbio typeB.trimmedReads.fastq.gz
+  
+   canu \
+  -p typeB -d typeB-erate-0.035 \
+  genomeSize=3.2m \
+  correctedErrorRate=0.035 \
+  -trimmed -corrected -pacbio typeB.trimmedReads.fastq.gz
+  
+     canu \
+  -p typeB -d typeB-erate-0.0375 \
+  genomeSize=3.2m \
+  correctedErrorRate=0.0375 \
+  -trimmed -corrected -pacbio typeB.trimmedReads.fastq.gz
+  
+   canu \
+  -p typeB -d typeB-erate-0.040 \
+  genomeSize=3.2m \
+  correctedErrorRate=0.040 \
+  -trimmed -corrected -pacbio typeB/typeB.trimmedReads.fastq.gz
+  
+spades.py --pacbio typeB.trimmed0.035correctedReads.fastq --careful -o SPAdespb
+
+dipspades.py --pacbio typeB.trimmed0.035correctedReads.fastq --careful -o dipSPAdespb
+
+
+
+ILLUMINA READ PROCESSING
+
+bbduk.sh \\\n",
+    "ref=/opt/bioinfo/bbmap/resources/truseq.fa.gz \\\n",
+    "ktrim=r \\\n",
+    "mink=11 \\\n",
+    "k=23 \\\n",
+    "tbo=t \\\n",
+    "tpe=t \\\n",
+    "in1=M450_R1.fastq \\\n",
+	"in2=M450_R2.fastq \\\n",
+    "qtrim=rl \\\n",
+    "ow=t \\\n",
+    "threads=6 \\\n",
+    "out1=M450.qc.R1.fastq \\\n"
+	"out2=M450.qc.R2.fastq"
+
+ecc.sh threads=6 in1=M450.qc.R1.fastq in2=M450.qc.R2.fastq out1=M450.new.qc.R1.fastq out2=M450.new.qc.R2.fastq ow=t 2>&1 |
+
+bbnorm.sh in1=M450.new.qc.R1.fastq in2=M450.new.qc.R2.fastq target=40 out1=M450.norm.new.qc.R1.fastq out2=M450.norm.new.qc.R2.fastq threads=25 mindepth=2 ow=t
+
+pairs join -t M450_R1.fastq M450_R2.fastq > M450_paired.fq
+
+
+bbduk.sh \\\n",
+    "ref=/opt/bioinfo/bbmap/resources/truseq.fa.gz \\\n",
+    "ktrim=r \\\n",
+    "mink=11 \\\n",
+    "k=23 \\\n",
+    "tbo=t \\\n",
+    "tpe=t \\\n",
+    "in=M450_paired.fq \\\n",
+    "qtrim=rl \\\n",
+    "ow=t \\\n",
+    "threads=6 \\\n",
+    "out=M450_paired.qc.fq"
+	
+
+bbmerge.sh threads=6 in=M540_paired.qc.fq out=M450_merged.fq.gz outu=unmerged.fq.gz
+
+ecc.sh threads=6 in=M450_merged.fq.gz out=M450_merged.ecc.fq.gz extra=unmerged.fq.gz ow=t 2>&1 |
+
+ecc.sh threads=6 in=umerged.fq.gz out=umerged.ecc.fq.gz extra=merged.fq.gz ow=t 2>&1 |
+
+bbnorm.sh in=M450_merged.ecc.fq.gz target=40 out=M450_normed.fq.gz threads=25 mindepth=2 ow=t
+	
+mira mirapb.conf >&log_assembly.txt
+
+
+ILLUMINA ONLY ASSEMBLIES
+mira miraill2.conf >&log_assembly.txt
+
+spades.py -1 M450.norm.new.qc.R1.fastq -2 M450.norm.new.qc.R2.fastq --careful -o SPAdesill
+
+mira miraillraw.conf >&log_assembly.txt
+
+metaspades.py -1 M450_R1.fastq -2 M450_R2.fastq --careful -o metaSPAdesillraw
+
+spades.py -1 M450_R1.fastq -2 M450_R2.fastq --careful -o SPAdesillraw
+
+
+
+ILLUMINA-PACBIO HYBRID ASSEMBLIES
+lordec-correct -2 M450_normed.fq.gz -k 19 -s 3 -i M450pacbio.fastq -o M450.corrected.fastq &>mylog.log
+
+lordec-trim -i M450.corrected.fastq -o M450.corrected.trimmed.fastq
+
+canu \
+  -p typeB -d typeB_LORDEC \
+  genomeSize=3.2m \
+  -trimmed -corrected -pacbio M450.corrected.trimmed.fastq
+
+spades.py -1 M450.norm.new.qc.R1.fastq -2 M450.norm.new.qc.R2.fastq --pacbio typeB.trimmed0.035correctedReads.fastq --careful -o SPAdesillPB
+
+dipspades.py -1 M450.norm.new.qc.R1.fastq -2 M450.norm.new.qc.R2.fastq --pacbio typeB.trimmed0.035correctedReads.fastq --careful -o dipSPAdesillpb
+
+spades.py --pacbio M450.corrected.trimmed.fastq --careful -o SPAdesLPB
+
+spades.py -1 M450.norm.new.qc.R1.fastq -2 M450.norm.new.qc.R2.fastq --pacbio M450.corrected.trimmed.fastq --careful -o SPAdesillLPB
+
+mira mirapb-ill.conf >&log_assembly.txt
